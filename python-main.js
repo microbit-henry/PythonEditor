@@ -609,41 +609,54 @@ function web_editor(config) {
         }
     }
 
+    function isMakecode(hexStr) {
+
+    }
+
+    function makecodeCheck(hexStr){
+        if (isMakecode(hexStr)) {
+            showWarning('makecode');
+            return true;
+        }
+    }
+
     // Reset the filesystem and load the files from this hex file to the fs and editor
     function loadHex(filename, hexStr) {
         var errorMsg = '';
         var code = '';
         var importedFiles = [];
         var tryOldMethod = false;
-        try {
-            // If hexStr is parsed correctly it formats the file system before adding the new files
-            importedFiles = micropythonFs.importFilesFromIntelHex(hexStr, {
-                overwrite: true,
-                formatFirst:true
-            });
-            // Check if imported files includes a main.py file
-            if (importedFiles.indexOf('main.py') > -1) {
-                code = micropythonFs.read('main.py');
-            } else {
-                // There is no main.py file, but there could be appended code
-                tryOldMethod = true;
-                errorMsg += config.translate.alerts.no_main + '\n';
-            }
-        } catch(e) {
-           tryOldMethod = true;
-           errorMsg += e.message + '\n';
-        }
-        if (tryOldMethod) {
+        if (!makecodeCheck(hexStr)) {
             try {
-                code = microbitFs.getIntelHexAppendedScript(hexStr);
-                micropythonFs.write('main.py', code);
+                // If hexStr is parsed correctly it formats the file system before adding the new files
+                importedFiles = micropythonFs.importFilesFromIntelHex(hexStr, {
+                    overwrite: true,
+                    formatFirst:true
+                });
+                // Check if imported files includes a main.py file
+                if (importedFiles.indexOf('main.py') > -1) {
+                    code = micropythonFs.read('main.py');
+                } else {
+                    // There is no main.py file, but there could be appended code
+                    tryOldMethod = true;
+                    errorMsg += config.translate.alerts.no_main + '\n';
+                }
             } catch(e) {
-                // Only display an error if there were no files added to the filesystem
-                if (!importedFiles.length) {
-                    errorMsg += config.translate.alerts.no_script + '\n';
-                    errorMsg += e.message;
-                    return alert(config.translate.alerts.no_python + '\n\n' +
-                            config.translate.alerts.error + errorMsg);
+            tryOldMethod = true;
+            errorMsg += e.message + '\n';
+            }
+            if (tryOldMethod) {
+                try {
+                    code = microbitFs.getIntelHexAppendedScript(hexStr);
+                    micropythonFs.write('main.py', code);
+                } catch(e) {
+                    // Only display an error if there were no files added to the filesystem
+                    if (!importedFiles.length) {
+                        errorMsg += config.translate.alerts.no_script + '\n';
+                        errorMsg += e.message;
+                        return alert(config.translate.alerts.no_python + '\n\n' +
+                                config.translate.alerts.error + errorMsg);
+                    }
                 }
             }
         }
@@ -824,6 +837,8 @@ function web_editor(config) {
     function showWarning(check){
         if(check=="mpy"){
             $("#filetype-text").text("You just tried to load a .mpy file. We are currently working on supporting these files but currently the only supported file types are .hex and .py. We hope to implement this feature soon!")
+        }else if(check =='makecode'){
+            $("#filetype-text").text("You just tried to load a makecode hex file, this type of file can only be opened in the makecode editor. Please try again with a micropython file or open your makecode file in the makecode folder")
         }else{
             $("#filetype-text").text("You can only load files with the extensions .hex or .py. Please try again.")
         }
